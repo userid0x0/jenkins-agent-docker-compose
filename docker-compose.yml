@@ -1,0 +1,49 @@
+
+services:
+  agent:
+    build:
+      context: inbound-agent
+    init: true
+    restart: unless-stopped
+    environment:
+      - DOCKER_HOST=tcp://dind:2376
+      - DOCKER_CERT_PATH=/certs/client
+      - DOCKER_TLS_VERIFY=1
+      - NO_PROXY="dind;${NO_PROXY}"
+      - no_proxy="dind;${no_proxy}"
+      - JENKINS_AGENT_WORKDIR=/home/jenkins/agent
+    volumes:
+      - cert:/certs/client
+      - workspace:/home/jenkins/workspace
+    env_file:
+      - path: ./.env
+        required: true
+      - path: ./.env.override
+        required: false
+    networks:
+      - default
+    depends_on:
+      - dind
+
+  dind:
+    image: docker.io/docker:dind
+    hostname: dind
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - DOCKER_TLS_CERTDIR=/certs
+    command: --storage-driver overlay2
+    volumes:
+      - cert:/certs/client
+      - workspace:/home/jenkins/workspace
+      - docker:/var/lib/docker
+    networks:
+      - default
+  
+volumes:
+  cert:
+  workspace:
+  docker:
+
+networks:
+  default:
